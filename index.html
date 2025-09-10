@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>燕鸥模拟器：30天挑战</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: "Dengxian", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background-color: #e9e0cf; /* 米白色 */
+            color: #414141; /* 深棕色 */
+        }
+        .game-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .stat-item {
+            border: 1px solid #D7CCC8;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            background-color: #e9e0cf;
+        }
+        .log-container {
+            height: 200px;
+            background-color: #EFEBE9;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .log-entry {
+            border-bottom: 1px dashed #D7CCC8;
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        #main-display {
+            line-height: 1.8;
+        }
+        .btn {
+            background-color: #414141;
+            color: #e9e0cf;
+            transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background-color: #cba990;
+        }
+        .btn-secondary {
+            background-color: #e9e0cf;
+        }
+        .btn-secondary:hover {
+            background-color: #cba990;
+        }
+        .btn:disabled {
+            background-color: #BDBDBD;
+            cursor: not-allowed;
+        }
+        #clock-hand {
+            transition: transform 1s ease-in-out;
+            transform-origin: 50% 50%;
+        }
+        .modal-overlay.hidden {
+            display: none;
+        }
+        .modal-overlay {
+            display: flex;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="p-4">
+    
+    <div id="info-modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden justify-center items-center z-50 p-4 modal-overlay">
+        <div id="info-modal" class="bg-white text-stone-700 p-8 rounded-lg shadow-xl max-w-2xl w-full relative">
+            <h2 class="text-2xl font-bold mb-4">游戏说明</h2>
+            <p class="mb-2">欢迎来到《北极燕鸥模拟器》！</p>
+            <p class="mb-2">你将体验极境的模拟日常，并30天内完成小说《豪胆船长传奇》。</p>
+            <ul class="list-disc list-inside mb-4 space-y-1">
+                <li><strong>时间系统：</strong> 每天分为上午(8:00)，下午(14:00)和晚上(20:00)三个阶段。你的每个行动都会推进时间。</li>
+                <li><strong>行动：</strong>
+                    <ul class="list-['-_'] list-inside ml-4">
+                        <li><strong>外出：</strong> 探索不同地点，获取<strong>灵感</strong>，并有机会触发<strong>特殊事件</strong>。</li>
+                        <li><strong>找点事做：</strong> 进行磨练，提升你的<strong>写作能力</strong>和作品的特定风格。</li>
+                        <li><strong>写作：</strong> 晚上的主要活动，消耗<strong>灵感</strong>来推进<strong>写作进度</strong>。</li>
+                        <li><strong>商店：</strong> 晚上可以访问商店，使用<strong>龙门币</strong>购买道具，并查看通讯器内的聊天。</li>
+                    </ul>
+                </li>
+                <li><strong>属性：</strong> 你的选择会影响<strong>灵感</strong>、<strong>写作进度</strong>、<strong>写作能力</strong>以及隐藏的<strong>作品倾向</strong>和<strong>角色好感</strong>，最终决定小说的结局。</li>
+            </ul>
+            <p>祝你创作顺利！</p>
+            <button id="close-info-modal-btn" class="absolute top-4 right-4 text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button>
+        </div>
+    </div>
+
+    <div id="shop-modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden justify-center items-center z-50 p-4 modal-overlay">
+        <div id="shop-modal" class="bg-white text-stone-700 p-8 rounded-lg shadow-xl max-w-2xl w-full relative">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">商店</h2>
+                <div id="shop-lmb-display" class="text-lg font-bold">龙门币: 1000</div>
+            </div>
+            <div id="shop-items-container" class="space-y-4 max-h-[60vh] overflow-y-auto pr-4">
+                </div>
+            <button id="close-shop-modal-btn" class="absolute top-4 right-4 text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button>
+        </div>
+    </div>
+    
+    <div id="communicator-modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden justify-center items-center z-50 p-4 modal-overlay">
+        <div id="communicator-modal" class="bg-gray-800 text-white p-6 rounded-lg shadow-xl max-w-lg w-full h-[80vh] flex flex-col relative">
+            <h2 class="text-2xl font-bold mb-4 text-cyan-300 border-b border-cyan-500 pb-2">通讯器</h2>
+            <div id="message-history-container" class="flex-grow overflow-y-auto pr-4 mb-4 space-y-4">
+                </div>
+            <div id="current-message-container" class="border-t border-cyan-500 pt-4">
+                </div>
+            <button id="close-communicator-modal-btn" class="absolute top-4 right-4 text-2xl font-bold text-gray-400 hover:text-white">&times;</button>
+        </div>
+    </div>
+    
+    <div id="ending-modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 hidden justify-center items-center z-50 p-4 modal-overlay">
+        <div id="ending-modal" class="bg-white text-stone-700 p-8 rounded-lg shadow-xl max-w-2xl w-full relative text-center">
+            <h2 class="text-3xl font-bold mb-6">结局</h2>
+            <div id="ending-text-container" class="text-left space-y-4 text-lg mb-6 min-h-[200px]">
+                </div>
+            <p id="ending-prompt" class="text-gray-500 animate-pulse">点击任意位置继续...</p>
+        </div>
+    </div>
+
+
+    <div class="game-container relative">
+        <button id="open-info-btn" class="absolute top-4 left-4 w-8 h-8 bg-stone-700 text-white rounded-full flex items-center justify-center text-xl font-bold z-10 hover:bg-stone-600 transition-colors">?</button>
+        
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold">燕鸥模拟器</h1>
+            <p class="text-lg mb-4">——《豪胆船长传奇》30天创作挑战</p>
+            <div id="day-display" class="text-2xl font-bold mb-4">第 1 天</div>
+            <div id="clock-container" class="relative w-40 h-40 mx-auto">
+                <svg viewBox="0 0 100 100" class="w-full h-full">
+                    <circle cx="50" cy="50" r="48" stroke="#414141" stroke-width="2" fill="#e9e0cf"/>
+                    <text x="46" y="15" font-size="8" fill="#414141">12</text>
+                    <text x="80" y="54" font-size="8" fill="#414141">3</text>
+                    <text x="47" y="92" font-size="8" fill="#414141">6</text>
+                    <text x="10" y="54" font-size="8" fill="#414141">9</text>
+                    <line id="clock-hand" x1="50" y1="50" x2="50" y2="15" stroke="#414141" stroke-width="2"/>
+                </svg>
+                <div id="time-display" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xl font-bold">08:00</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div id="inspiration-stat" class="stat-item"><span class="block font-bold text-xl">5</span>灵感</div>
+            <div id="progress-stat" class="stat-item"><span class="block font-bold text-xl">第一卷</span>写作进度</div>
+            <div id="skill-stat" class="stat-item"><span class="block font-bold text-xl">初窥门径</span>写作能力</div>
+            <div id="lmb-stat" class="stat-item"><span class="block font-bold text-xl">1000</span>龙门币</div>
+        </div>
+
+        <div id="main-display" class="mb-6 p-4 border border-stone-200 rounded-lg min-h-[150px] bg-white">
+            </div>
+
+        <div id="action-buttons" class="flex flex-col justify-center items-center gap-4 min-h-[120px]">
+            </div>
+
+        <div class="mt-8">
+            <h2 class="text-xl font-bold mb-2">创作日志</h2>
+            <div id="log-container" class="log-container">
+                <p class="log-entry">日志开始...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Modal elements
+        const infoModalOverlay = document.getElementById('info-modal-overlay');
+        const openInfoBtn = document.getElementById('open-info-btn');
+        const closeInfoModalBtn = document.getElementById('close-info-modal-btn');
+        const shopModalOverlay = document.getElementById('shop-modal-overlay');
+        const closeShopModalBtn = document.getElementById('close-shop-modal-btn');
+        const communicatorModalOverlay = document.getElementById('communicator-modal-overlay');
+        const closeCommunicatorModalBtn = document.getElementById('close-communicator-modal-btn');
+        const endingModalOverlay = document.getElementById('ending-modal-overlay');
+
+        // Game State
+        const gameState = {
+            day: 1,
+            currentTime: 8,
+            clockRotation: 0,
+            longmenbi: 1000,
+            writingProgress: 0,
+            inspiration: 5,
+            writingSkill: 0,
+            thornsFavorability: 0,
+            tags: { adventure: 0, romance: 0, mystery: 0, anime: 0, erotica: 0 },
+            completedEvents: [],
+            isGameOver: false,
+            pendingInspiration: 0,
+            lastProgressText: '',
+            lastSkillText: '',
+            messageHistory: {},
+            currentConversation: null,
+        };
+        // Game Data
+        const actions = [
+            { id: 'wharf', name: '码头', type: 'location' },
+            { id: 'town', name: '去镇子上', type: 'location' },
+            { id: 'church', name: '教会遗址', type: 'location', conditions: (state) => state.day >= 5 },
+            { id: 'rhodes', name: '留在罗德岛', type: 'location' },
+            { id: 'dorm', name: '整理宿舍', type: 'activity' },
+            { id: 'polish', name: '修改手稿', type: 'activity' },
+            { id: 'reception', name: '会客室打工', type: 'activity', },
+            { id: 'mission', name: '执行任务', type: 'activity' },
+            { id: 'write', name: '写作 (-5 灵感)', type: 'evening' },
+            { id: 'assistant', name: '做博士助理', type: 'evening' },
+            { id: 'shop', name: '商店', type: 'evening' },
+            { id: 'communicator', name: '查看通讯器', type: 'evening' },
+        ];
+        const shopItems = [
+            { id: 'coffee', name: '提神咖啡', description: '浓郁的香气让你精神一振。', price: 20, stock: Infinity, effect: { inspiration: 5 } },
+            { id: 'writing_guide', name: '写作指南·入门', description: '一本经典的写作指导书籍，永久提升你的技巧。', price: 80, stock: 1, effect: { writingSkill: 2 } },
+            { id: 'thorns_photo', name: '棘刺的签名照', description: '从可露希尔那里买来的。为什么她会有这种东西？', price: 50, stock: 1, effect: { thornsFavorability: 3 } },
+        ];
+        const communicatorMessages = {
+            2: {
+                message: "<b>[棘刺]</b><br>在忙吗？只是想说，上次在咖啡厅聊得很愉快。",
+                choices: [
+                    {
+                        text: "“我也很开心。”",
+                        playerReply: "“我也很开心。”",
+                        thornsReply: "<b>[棘刺]</b><br>那就好。不打扰你了，好好写作。",
+                        effects: { thornsFavorability: 1 }
+                    },
+                    {
+                        text: "“还好，在构思情节。”",
+                        playerReply: "“还好，在构思情节。”",
+                        thornsReply: "<b>[棘刺]</b><br>需要帮忙的话随时可以找我。祝顺利。",
+                        effects: { thornsFavorability: 1, inspiration: 2 }
+                    }
+                ]
+            },
+            4: {
+                message: "<b>[棘刺]</b><br>今天在图书馆看到你了。你似乎很专注。",
+                choices: [
+                    {
+                        text: "“嗯，查到了一些有趣的资料。”",
+                        playerReply: "“嗯，查到了一些有趣的资料。”",
+                        nextStage: {
+                            message: "<b>[棘刺]</b><br>哦？关于什么的？",
+                            choices: [
+                                {
+                                    text: "“关于古代伊比利亚的香料贸易。”",
+                                    playerReply: "“关于古代伊比利亚的香料贸易。”",
+                                    thornsReply: "<b>[棘刺]</b><br>那部分的历史很复杂，但确实很有魅力。你的小说一定会因此增色不少。",
+                                    effects: { tags: { adventure: 1 } }
+                                },
+                                {
+                                    text: "“没什么，只是随便看看。”",
+                                    playerReply: "“没什么，只是随便看看。”",
+                                    thornsReply: "<b>[棘刺]</b><br>这样啊。好吧。",
+                                    effects: { thornsFavorability: -1 }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        text: "“只是在发呆。”",
+                        playerReply: "“只是在发呆。”",
+                        thornsReply: "<b>[棘刺]</b><br>偶尔也需要放松。别太累了。",
+                        effects: { inspiration: 1 }
+                    }
+                ]
+            }
+        };
+        const events = [
+            // Unique Events
+            {
+                id: 'wharf_story',
+                triggerId: 'wharf',
+                triggerDays: [3, 7, 11, 15, 19, 23, 27],
+                prerequisites: [],
+                conditions: (state) => true,
+                repeatable: false,
+                description: '码头的老水手正在讲述一个<b>离奇的海上谋杀案</b>，听起来能成为不错的素材。',
+                choices: [
+                    { 
+                        text: '“真相只有一个！”',
+                        conditions: (state) => state.writingSkill >= 6,
+                        disabledText: '“真相只有一个！” (需要“渐入佳境”的写作能力)',
+                        effect: () => { 
+                            updateMainDisplay('你将故事记下，这会是很好的推理素材。');
+                            applyEffects({ inspiration: 3, tags: { mystery: 2 } });
+                            endEvent('你获得了推理素材。');
+                        }
+                    },
+                    { 
+                        text: '“海的那边是敌人吗？”',
+                        conditions: (state) => state.tags.anime >= 2,
+                        disabledText: '“海的那边是敌人吗？” (需要更多的二次元浓度)',
+                        effect: () => {
+                            updateMainDisplay('你从故事中听出了更深沉的意味。');
+                            applyEffects({ inspiration: 2, tags: { anime: 2 } });
+                            endEvent('你获得了二次元素材。');
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'dirty_joke',
+                triggerId: 'wharf',
+                prerequisites: [],
+                conditions: (state) => true,
+                repeatable: false, 
+                description: '水手们在开一些粗俗但有趣的玩笑，内容十分……<b>劲爆</b>。',
+                choices: [
+                    { text: '加入他们', effect: () => {
+                        updateMainDisplay('你和水手们打成一片，获得了许多不可告人的素材。');
+                        applyEffects({ inspiration: 4, tags: { erotica: 3 } });
+                        endEvent('你获得了色情小说素材。');
+                    }},
+                    { text: '不屑一顾', effect: () => {
+                        updateMainDisplay('你觉得这些内容有伤风化，转身离开了。');
+                        endEvent('你对水手们的玩笑不感兴趣。');
+                    }}
+                ]
+            },
+             {
+                id: 'kelhel_help',
+                triggerId: 'rhodes',
+                prerequisites: [],
+                conditions: (state) => state.writingSkill > 2,
+                repeatable: false,
+                description: '你看到<b>凯尔希医生</b>正在整理文件，似乎需要帮助。因为你之前表现出的能力，她对你点了点头。',
+                choices: [
+                    { text: '上前帮忙', effect: () => {
+                        updateMainDisplay('你帮<b>凯尔希医生</b>整理了文件，她向你表示了感谢，并就<b>“故事的逻辑自洽性”</b>问题提出了几个尖锐但极有价值的建议。');
+                        applyEffects({ writingSkill: 1 });
+                        endEvent('你获得了<b>凯尔希医生</b>的指点。<b style="color: #002FA7;">写作能力</b>提升了。');
+                    }},
+                    { text: '不敢打扰', effect: () => {
+                        updateMainDisplay('你觉得还是不要打擾她比较好，悄悄溜走了。');
+                        endEvent('你选择不打扰<b>凯尔希医生</b>。');
+                    }}
+                ]
+            },
+            // Fallback Repeatable Events
+            { id: 'town_fallback', triggerId: 'town', repeatable: true, conditions: () => true, description: '你在镇子上闲逛，并观察着形形色色……不，在现在的伊比利亚，只有千篇一律的路人。空洞的建筑，麻木的表情，以及也许只有你能看到的，在压抑的裂缝中生长的一点亮色。<br>你希望自己能为他们写点什么，让他们在书里生活在一个更温情的世界。<br><br>获得<b>灵感</b>，并使作品更具有<b>言情倾向</b>。', effects: { inspiration: 5, tags: { romance: 2 } }, logMessage: '<b>灵感</b>和<b>言情倾向</b>提升了。' },
+            { id: 'church_fallback', triggerId: 'church', repeatable: true, conditions: () => true, description: '你来到了当地居民讳莫如深的教廷遗址。经过几次战斗任务，这里已经相当安全，但仍然没什么人会来这里。你又是因为什么来到这里呢？你在脑海中描摹建筑本来的样子，以及曾经在其中生活的小小身影。<br>你对“船长”的形象有了一些新的理解，并收集了一些东西，准备带给棘刺。他也许不会感兴趣……但谁知道呢？<br><br>获得<b>灵感</b>。', effects: { inspiration: 5 }, logMessage: '<b>灵感</b>提升了。' },
+            { id: 'wharf_fallback', triggerId: 'wharf', repeatable: true, conditions: () => true, description: '你来到了码头。<br>这里没有行人，没有船只，只有许多年前曾经热闹的喧嚣，交叠成往复的海浪声，陪伴着你。', choices: [ { text: '整点薯条', effect: () => { updateMainDisplay('废弃的码头不应该出现这种食物，但也许是种族天赋，你的手中莫名其妙出现了一袋薯条。你爽吃了一顿，感觉头脑清醒了不少。 <br><br>获得<b>灵感</b>。'); applyEffects({ inspiration: 5 }); endEvent('在海边吃薯条，<b>灵感</b>提升了。'); } }, { text: '在海边逛逛', effect: () => { updateMainDisplay('你喜欢和朋友们待在一起，当然也能享受独处的时光。但在这里似乎与那些都不一样，你正在理解那个曾经远远看见的、独自在罗德岛甲板上吹风的身影。<br>他现在正在做什么呢？也在船上的某个角落里，与你吹着同一阵风吗？<br>想到这里，你的心中不禁涌现了许多言语…… <br><br>获得<b>灵感</b>。'); applyEffects({ inspiration: 5 }); endEvent('在海边逛逛，<b>灵感</b>提升了。'); } } ] },
+            { id: 'rhodes_fallback', triggerId: 'rhodes', repeatable: true, conditions: () => true, description: '你在罗德岛闲逛，并热情地为那些看起来有些迷茫的人指路。观察别人的生活是非常有趣的体验，你对故事创作有了更多灵感。<br>而且不知道为什么，你总觉得这里非常的二次元。<br><br>获得<b>灵感</b>，并使作品更具有<b>二次元倾向</b>。', effects: { inspiration: 5, tags: { anime: 2 } }, logMessage: '<b>灵感</b>和<b>二次元倾向</b>提升了。' },
+            { id: 'dorm_fallback', triggerId: 'dorm', repeatable: true, conditions: () => true, description: '你整理并打扫了宿舍——你自己的，和隔壁的那一间。房间里的摆设都和棘刺出发去寻找剑术那一天一样，除了烧瓶里的绿植——多了几片叶子。希望那位驻泰拉海洋办事处负责人，如果还有偶尔回到罗德岛的时候，依然能够住在这里，并且读一读你创作的小说。<br>想象着棘刺阅读这本书的样子，你对《豪胆船长传奇》的创作有了更深刻的领悟。<br><br>获得<b>写作能力</b>。', effects: { writingSkill: 5 }, logMessage: '提升了<b>写作能力</b>。' },
+            { id: 'mission_fallback', triggerId: 'mission', repeatable: true, conditions: () => true, description: '你作为小队不可或缺的成员，顺利完成了任务。百年一遇大帅哥今天的表现也很完美，一定不会得到新的投诉了……吧？<br>你得到了报酬，并产生了非常刺激的感觉。<br><br>获得<b>1500龙门币</b>，并使作品更具有<b>冒险倾向</b>。', effects: { longmenbi: 1500, tags: { adventure: 2 } }, logMessage: '获得<span style="color: #002FA7;">1500</span><b>龙门币</b>，<b>冒险倾向</b>提升了。' },
+            { id: 'reception_fallback', triggerId: 'reception', repeatable: true, conditions: () => true, description: '你在会客室整理了文件，并留下了许多线索7。应该够博士用很久了吧？<br>你得到了报酬，并听到了许多故事背后隐藏的真相。<br><br>获得<b>1500龙门币</b>，并使作品更具有<b>推理倾向</b>。', effects: { longmenbi: 1500, tags: { mystery: 2 } }, logMessage: '获得<span style="color: #002FA7;">1500</span><b>龙门币</b>，<b>推理倾向</b>提升了。' },
+            { id: 'polish_fallback', triggerId: 'polish', repeatable: true, conditions: () => true, description: '你作为自己的第一个读者，重新阅读了未完成的《豪胆船长传奇》。最后会成为怎样的一本书呢？但无论如何，你都会被“这位船长”所打动吧。<br>你润色了行文，对小说的创作有了一些新的领悟。<br><br>获得<b>写作能力</b>。', effects: { writingSkill: 5 }, logMessage: '提升了<b>写作能力</b>。' },
+            { id: 'write_fallback', triggerId: 'write', repeatable: true, conditions: () => true, description: '夜深了，只有台灯与你为伴。你感到一丝孤独，但也无比专注。你描摹出笔下角色的一举一动，仿佛一切都是你亲眼所见。', effects: { writingSkill: 1 }, logMessage: '你度过了一个平静的写作之夜。' },
+            { id: 'assistant_fallback', triggerId: 'assistant', repeatable: true, conditions: () => true, description: '你完美地完成了助理工作，用热水壶帮博士吃了泡面做夜宵，并得到了额外的夜班补助。', effects: { longmenbi: 1800 }, logMessage: '作为助理的工作很顺利，获得<span style="color: #002FA7;">1800</span><b>龙门币</b>' }
+        ];
+        const endings = {
+            writingProgress: [
+                { condition: (v) => v < 30, text: "最终，你的小说只完成了寥寥数千字，连一个完整的章节都凑不齐。" },
+                { condition: (v) => v >= 30 && v < 100, text: "虽然你努力到了最后一刻，但故事还是在一个不该结束的地方戛然而止，留下了一个遗憾的结尾。" },
+                { condition: (v) => v >= 100, text: "在第30天的深夜，你敲下了最后一个句号。一部完整的作品，在你手中诞生了。" },
+            ],
+            writingSkill: [
+                { condition: (v) => v < 6, text: "你的写作技巧还略显青涩，文笔和结构上都留下了不少可以改进的痕迹。" },
+                { condition: (v) => v >= 6 && v < 12, text: "你的文笔相当老练，能够娴熟地驾驭故事的节奏，展现出专业作家的水准。" },
+                { condition: (v) => v >= 12, text: "你的文字充满了力量与美感，无论是谁读到你的作品，都会被你高超的技巧所折服。" },
+            ],
+            thornsFavorability: [
+                { condition: (v) => v <= 5, text: null }, // No text if favorability is low
+                { condition: (v) => v > 5 && v < 10, text: "在写作过程中，你与棘刺成为了偶尔会聊上几句的朋友。" },
+                { condition: (v) => v >= 10, text: "棘刺成为了你这段创作旅程中不可或缺的伙伴，你们之间的交流碰撞出了许多火花。" },
+            ],
+            dominantTag: [
+                { condition: (tag) => tag.key === 'adventure' && tag.value > 5, text: "整部作品充满了对未知海域的向往和对勇气的赞颂，是一部王道的冒险谭。" },
+                { condition: (tag) => tag.key === 'romance' && tag.value > 5, text: "细腻的情感描写成为了作品的核心，角色之间的悲欢离合牵动着人心。" },
+                { condition: (tag) => tag.key === 'mystery' && tag.value > 5, text: "故事中充满了悬念和谜题，逻辑缜密的推理让整个冒险故事更加精彩。" },
+                { condition: (tag) => tag.key === 'anime' && tag.value > 5, text: "你的故事充满了独特的思辨和令人印象深刻的台词，在读者中引发了持续的讨论。" },
+                { condition: (tag) => tag.key === 'erotica' && tag.value > 5, text: "一股神秘的、原始的吸引力贯穿了故事的始终……" },
+            ],
+            finalEnding: [ // This will be the overall summary ending, checked in order
+                {
+                    condition: (state) => state.writingProgress < 30,
+                    text: "<b style='color:#B71C1C;'>【结局：惨淡的废稿】</b><br>拖稿的最终结局是被编辑无情地抛弃，你不得已只能找个班上。你的作家生涯，还没开始就结束了。"
+                },
+                {
+                    condition: (state) => state.writingProgress < 100,
+                    text: "<b style='color:#757575;'>【结局：遗憾的烂尾】</b><br>仓促的结尾让它泯然众人。读者们纷纷表示遗憾，而《豪胆船长传奇》最终也只是一部小有名气的网络小说而已。"
+                },
+                {
+                    condition: (state) => getDominantTag(state).key === 'erotica' && getDominantTag(state).value >= 10,
+                    text: "<b style='color:#FFB300;'>【特殊结局：地下室之王】</b><br>虽然无法公开发表，但在某个神秘的小圈子里，你被奉为新的神。《豪胆船长传奇》成为了地下文学的巅峰之作。"
+                },
+                {
+                    condition: (state) => getDominantTag(state).key === 'romance' && state.thornsFavorability >= 15 && state.writingSkill >= 10,
+                    text: "<b style='color:#43A047;'>【结局：最佳搭档】</b><br>小说大获成功，而棘刺也看到了你的作品。在一个阳光明媚的下午，他拿着你的书找到了你。“关于续集，”他说，“我觉得我们可以一起写。”"
+                },
+                {
+                    condition: (state) => getDominantTag(state).key === 'adventure' && state.writingSkill >= 15,
+                    text: "<b style='color:#1E88E5;'>【结局：伊比利亚的骄傲】</b><br>你完美地再现了豪胆船长的英姿。小说成为了现象级的畅销作，被誉为“新时代的冒险圣经”。你一举成名，成为了最顶尖的冒险小说家。"
+                },
+                {
+                    condition: (state) => getDominantTag(state).key === 'mystery' && state.writingSkill >= 12,
+                    text: "<b style='color:#5E35B1;'>【结局：名侦探作家】</b><br>你巧妙地在冒险故事中融入了复杂的诡计和推理。小说大卖，甚至有侦探社邀请你去做顾问。"
+                },
+                {
+                    condition: (state) => getDominantTag(state).key === 'anime' && state.writingSkill >= 10,
+                    text: "<b style='color:#F06292;'>【结局：年度金句】</b><br>“海的那边是自由……”你的小说在年轻读者群体中引发了巨大的讨论热潮，成为一部载入史册的畅销作品。"
+                },
+                { // The default success ending must be last
+                    condition: (state) => state.writingProgress >= 100,
+                    text: "<b style='color:#6D4C41;'>【结局：平凡的畅销作】</b><br>你顺利地完成了小说，市场反响还不错。它为你带来了一笔可观的收入和一些名气，但也就仅此而已了。不过，作为作家的生涯，总算是稳定下来了。"
+                }
+            ]
+        };
+        
+        let currentEvent = null;
+        let currentActionType = null;
+        let currentActionName = '';
+        let endingSequence = [];
+        let currentEndingLine = 0;
+
+        // Modal Functions
+        function openInfoModal() { infoModalOverlay.classList.remove('hidden'); }
+        function closeInfoModal() { infoModalOverlay.classList.add('hidden'); }
+        function openShopModal() { 
+            populateShop();
+            shopModalOverlay.classList.remove('hidden'); 
+        }
+        function closeShopModal() { shopModalOverlay.classList.add('hidden'); }
+        function openCommunicatorModal() {
+            const day = gameState.day;
+            if (communicatorMessages[day] && !gameState.messageHistory[day]) {
+                gameState.currentConversation = { day: day, node: communicatorMessages[day] };
+            } else {
+                gameState.currentConversation = null;
+            }
+            renderCommunicator();
+            communicatorModalOverlay.classList.remove('hidden');
+        }
+        function closeCommunicatorModal() {
+            communicatorModalOverlay.classList.add('hidden');
+        }
+
+
+        // UI Update Functions
+        function updateUI() {
+            if (gameState.isGameOver) return;
+            document.getElementById('day-display').textContent = `第 ${gameState.day} 天 / 共 30 天`;
+            updateClock();
+            document.getElementById('progress-stat').querySelector('span').textContent = getProgressText(gameState.writingProgress);
+            document.getElementById('inspiration-stat').querySelector('span').textContent = gameState.inspiration;
+            document.getElementById('skill-stat').querySelector('span').textContent = getSkillText(gameState.writingSkill);
+            document.getElementById('lmb-stat').querySelector('span').textContent = gameState.longmenbi;
+            
+            const buttons = document.querySelectorAll('#action-buttons button:not(.event-choice)');
+            buttons.forEach(btn => { btn.disabled = currentEvent !== null; });
+        }
+        
+        function animateInspiration(targetValue) {
+            const inspirationStat = document.getElementById('inspiration-stat').querySelector('span');
+            const startValue = parseInt(inspirationStat.textContent);
+            if (startValue === targetValue) return;
+            const duration = 500;
+            const frameDuration = 1000 / 60;
+            const totalFrames = Math.round(duration / frameDuration);
+            let frame = 0;
+            const animation = () => {
+                frame++;
+                const progress = frame / totalFrames;
+                const currentValue = Math.round(startValue + (targetValue - startValue) * progress);
+                inspirationStat.textContent = currentValue;
+                if (frame < totalFrames) { requestAnimationFrame(animation); } 
+                else { inspirationStat.textContent = targetValue; gameState.inspiration = targetValue; }
+            };
+            requestAnimationFrame(animation);
+        }
+
+        function updateClock() {
+            const timeStr = String(gameState.currentTime === 24 ? '00' : gameState.currentTime).padStart(2, '0') + ':00';
+            document.getElementById('time-display').textContent = timeStr;
+            const hand = document.getElementById('clock-hand');
+            hand.style.transform = `rotate(${gameState.clockRotation}deg)`;
+        }
+
+        function updateMainDisplay(htmlContent) { document.getElementById('main-display').innerHTML = htmlContent; }
+
+        function getTimeOfDay() {
+            if (gameState.currentTime === 8) return '上午';
+            if (gameState.currentTime === 14) return '下午';
+            if (gameState.currentTime === 20 || gameState.currentTime === 24) return '夜间';
+            return '未知';
+        }
+
+        function addLog(message) {
+            const logContainer = document.getElementById('log-container');
+            const entry = document.createElement('p');
+            entry.className = 'log-entry';
+            const timeOfDay = getTimeOfDay();
+            entry.innerHTML = `[第${gameState.day}天 ${timeOfDay}] ${message}`;
+            logContainer.prepend(entry);
+        }
+
+        function updateActionsForTime() {
+            const actionButtons = document.getElementById('action-buttons');
+            actionButtons.innerHTML = '';
+            currentEvent = null;
+            let timeText = `现在是 ${String(gameState.currentTime).padStart(2, '0')}:00。`;
+            switch(gameState.currentTime) {
+                case 8:
+                    updateMainDisplay(`${timeText} 新的一天开始了，今天上午要做什么？`);
+                    createTimeActionButtons(actionButtons, ['外出', '找点事做']);
+                    break;
+                case 14:
+                    updateMainDisplay(`${timeText} 下午有什么安排吗？`);
+                    createTimeActionButtons(actionButtons, ['外出', '找点事做']);
+                    break;
+                case 20:
+                    updateMainDisplay(`${timeText} 经历了一天的辛劳，你回到了自己的单人宿舍，进行写作，还是做点别的？`);
+                    createTimeActionButtons(actionButtons, ['写作', '做博士助理', '商店', '查看通讯器']);
+                    break;
+            }
+        }
+
+        function createTimeActionButtons(container, actionNames) {
+            actionNames.forEach(actionName => {
+                const btn = document.createElement('button');
+                btn.className = 'text-lg py-3 px-8 rounded-lg btn w-80';
+                
+                switch(actionName) {
+                    case '外出': btn.textContent = '外出'; btn.onclick = showLocationOptions; break;
+                    case '找点事做': btn.textContent = '找点事做'; btn.onclick = showActivityOptions; break;
+                    case '写作': const writeAction = actions.find(a => a.id === 'write'); btn.textContent = writeAction.name; btn.onclick = () => handleAction('write'); break;
+                    case '做博士助理': const assistAction = actions.find(a => a.id === 'assistant'); btn.textContent = assistAction.name; btn.onclick = () => handleAction('assistant'); break;
+                    case '商店': const shopAction = actions.find(a => a.id === 'shop'); btn.textContent = shopAction.name; btn.onclick = openShopModal; break;
+                    case '查看通讯器': const commsAction = actions.find(a => a.id === 'communicator'); btn.textContent = commsAction.name; btn.onclick = openCommunicatorModal; break;
+                }
+                container.appendChild(btn);
+            });
+        }
+
+        function showLocationOptions() {
+            const actionButtons = document.getElementById('action-buttons');
+            actionButtons.innerHTML = '';
+            updateMainDisplay('选择一个想去的地方，或许能获得一些灵感，并遇到什么人。');
+            actions.filter(a => a.type === 'location' && (!a.conditions || a.conditions(gameState))).forEach(loc => {
+                const btn = document.createElement('button');
+                btn.textContent = `${loc.name}`;
+                btn.className = 'text-lg py-3 px-8 rounded-lg btn-secondary w-80';
+                btn.onclick = () => handleAction(loc.id);
+                actionButtons.appendChild(btn);
+            });
+            const backBtn = document.createElement('button');
+            backBtn.textContent = '返回重新选择';
+            backBtn.className = 'text-lg py-3 px-8 rounded-lg bg-stone-300 hover:bg-stone-400 text-stone-800 w-80';
+            backBtn.onclick = updateActionsForTime;
+            actionButtons.appendChild(backBtn);
+        }
+
+        function showActivityOptions() {
+            const actionButtons = document.getElementById('action-buttons');
+            actionButtons.innerHTML = '';
+            updateMainDisplay('不出门的话，要做点什么呢？也许能提升自己的能力，有什么新发现。');
+            actions.filter(a => a.type === 'activity' && (!a.conditions || a.conditions(gameState))).forEach(act => {
+                const btn = document.createElement('button');
+                btn.textContent = `${act.name}`;
+                btn.className = 'text-lg py-3 px-8 rounded-lg btn-secondary w-80';
+                btn.onclick = () => handleAction(act.id);
+                actionButtons.appendChild(btn);
+            });
+            const backBtn = document.createElement('button');
+            backBtn.textContent = '返回重新选择';
+            backBtn.className = 'text-lg py-3 px-8 rounded-lg bg-stone-300 hover:bg-stone-400 text-stone-800 w-80';
+            backBtn.onclick = updateActionsForTime;
+            actionButtons.appendChild(backBtn);
+        }
+        
+        function showEndTurnButton(nextActionCallback, buttonText = '结束') {
+            const actionButtons = document.getElementById('action-buttons');
+            actionButtons.innerHTML = '';
+            const btn = document.createElement('button');
+            btn.textContent = buttonText;
+            btn.className = 'text-lg py-3 px-8 rounded-lg btn w-80';
+            btn.onclick = () => {
+                btn.disabled = true;
+                if (gameState.pendingInspiration !== 0) {
+                    const targetInspiration = gameState.inspiration + gameState.pendingInspiration;
+                    gameState.pendingInspiration = 0;
+                    animateInspiration(targetInspiration);
+                }
+                setTimeout(() => { nextActionCallback(); }, 500);
+            };
+            actionButtons.appendChild(btn);
+        }
+
+        function advanceTime() {
+            gameState.clockRotation += 180;
+            if (gameState.currentTime === 8) gameState.currentTime = 14;
+            else if (gameState.currentTime === 14) gameState.currentTime = 20;
+            updateUI();
+            updateActionsForTime();
+        }
+        
+        function handleAction(actionId) {
+            const action = actions.find(a => a.id === actionId);
+            if (!action) return;
+            currentActionName = action.name;
+            currentActionType = action.type;
+            if (action.id === 'write' && gameState.inspiration < 5) {
+                updateMainDisplay('灵感不足，至少需要<b>5点</b>灵感才能开始写作。<br>今晚还是好好休息吧。');
+                showEndTurnButton(updateActionsForTime, '返回');
+                return;
+            }
+            const possibleNewEvents = events.filter(event => 
+                event.triggerId === actionId && !event.repeatable && !gameState.completedEvents.includes(event.id) &&
+                (event.prerequisites || []).every(prereqId => gameState.completedEvents.includes(prereqId)) &&
+                event.conditions(gameState) && (!event.triggerDays || event.triggerDays.includes(gameState.day))
+            );
+            let eventToTrigger;
+            if (possibleNewEvents.length > 0) { eventToTrigger = possibleNewEvents[Math.floor(Math.random() * possibleNewEvents.length)]; } 
+            else { const fallbackEvents = events.filter(event => event.triggerId === actionId && event.repeatable);
+                eventToTrigger = fallbackEvents[0]; }
+            
+            if (action.id === 'write') {
+                gameState.inspiration -= 5;
+                document.getElementById('inspiration-stat').querySelector('span').textContent = gameState.inspiration;
+                const progressGained = 0 + Math.floor(gameState.writingSkill / 10);
+                gameState.writingProgress = Math.min(100, gameState.writingProgress + progressGained);
+            }
+            startEvent(eventToTrigger);
+        }
+
+        function startEvent(event) {
+            currentEvent = event;
+            updateMainDisplay(event.description);
+            updateUI();
+            if (event.choices && event.choices.length > 0) { renderChoices(event.choices); } 
+            else {
+                if (event.effects) { applyEffects(event.effects); }
+                let logMessage = event.logMessage || '事件结束。';
+                if(event.triggerId === 'write') { logMessage = `你沉下心来写作，<b>写作进度</b>推进了，并稍微提升了一点<b>写作技巧</b>。`; }
+                endEvent(logMessage);
+            }
+        }
+
+        function renderChoices(choices) {
+            const actionButtons = document.getElementById('action-buttons');
+            actionButtons.innerHTML = '';
+            if (!choices || choices.length === 0) return;
+            choices.forEach(choice => {
+                const btn = document.createElement('button');
+                const isConditionMet = !choice.conditions || choice.conditions(gameState);
+
+                btn.className = 'text-lg py-3 px-8 rounded-lg event-choice w-80';
+                
+                if (isConditionMet) {
+                    btn.innerHTML = choice.text;
+                    btn.onclick = choice.effect;
+                    btn.classList.add('btn-secondary');
+                } else {
+                    btn.innerHTML = choice.disabledText || choice.text;
+                    btn.disabled = true;
+                    btn.classList.add('btn'); 
+                }
+                actionButtons.appendChild(btn);
+            });
+        }
+
+        function applyEffects(effects) {
+            for (const key in effects) {
+                if (key === 'tags') { for (const tag in effects.tags) { gameState.tags[tag] = (gameState.tags[tag] || 0) + effects.tags[tag]; } } 
+                else if (key === 'inspiration') { gameState.pendingInspiration += effects[key]; } 
+                else if (typeof gameState[key] !== 'undefined') { gameState[key] += effects[key]; }
+            }
+        }
+
+        function endEvent(resultMessage) {
+            if (currentEvent && !currentEvent.repeatable) { gameState.completedEvents.push(currentEvent.id); }
+            let actionText = '';
+            const cleanedActionName = currentActionName.split('(')[0].trim();
+            if (currentActionType === 'location') { actionText = `你前往了<b>${cleanedActionName}</b>`; } 
+            else if (currentActionType === 'activity') { actionText = `你进行了<b>${cleanedActionName}</b>`; } 
+            else if (currentActionType === 'evening') { actionText = `你选择了<b>${cleanedActionName}</b>`; }
+            let fullLogMessage = `${actionText}。${resultMessage}`;
+            const inspirationChange = gameState.pendingInspiration;
+            if (inspirationChange > 0) { fullLogMessage += ` <b>灵感</b><span style="color: #002FA7;">+${inspirationChange}</span>。`; } 
+            else if (inspirationChange < 0) { fullLogMessage += ` <b>灵感</b><span style="color: #E53935;">${inspirationChange}</span>。`; }
+            addLog(fullLogMessage);
+            checkAndLogMilestones();
+            currentEvent = null;
+            renderChoices([]);
+            updateUI();
+            if (currentActionType === 'evening') {
+                gameState.currentTime = 24;
+                gameState.clockRotation += 120;
+                updateUI();
+                showEndTurnButton(nextDay, '休息');
+            } else { showEndTurnButton(advanceTime); }
+            currentActionType = null;
+            currentActionName = '';
+        }
+
+        function checkAndLogMilestones() {
+            const newProgressText = getProgressText(gameState.writingProgress);
+            if (newProgressText !== gameState.lastProgressText) {
+                addLog(`<span style="color: #002FA7;">你的写作取得了阶段性突破，现在已经进入<b>《${newProgressText}》</b>的创作！</span>`);
+                gameState.lastProgressText = newProgressText;
+            }
+            const newSkillText = getSkillText(gameState.writingSkill);
+            if (newSkillText !== gameState.lastSkillText) {
+                addLog(`<span style="color: #002FA7;">你的写作技巧更上一层楼，达到了<b>【${newSkillText}】</b>的境界！</span>`);
+                gameState.lastSkillText = newSkillText;
+            }
+        }
+
+        function nextDay() {
+            if (gameState.day >= 30) { endGame(); return; }
+            gameState.pendingInspiration += 2;
+            setTimeout(() => {
+                gameState.clockRotation += 240;
+                gameState.day++;
+                gameState.currentTime = 8;
+                if (gameState.pendingInspiration !== 0) {
+                    const targetInspiration = gameState.inspiration + gameState.pendingInspiration;
+                     gameState.pendingInspiration = 0;
+                     animateInspiration(targetInspiration);
+                     addLog('<span style="color: #002FA7;">新的一天，灵感恢复了。</span>');
+                } else { addLog('新的一天开始了。'); }
+                updateUI();
+                updateActionsForTime();
+            }, 1200);
+        }
+        
+        // Shop Functions
+        function populateShop() {
+            const container = document.getElementById('shop-items-container');
+            const lmbDisplay = document.getElementById('shop-lmb-display');
+            container.innerHTML = '';
+            lmbDisplay.textContent = `龙门币: ${gameState.longmenbi}`;
+            shopItems.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'p-4 border rounded-lg flex justify-between items-center bg-stone-50';
+                
+                const isSoldOut = item.stock <= 0;
+                const canAfford = gameState.longmenbi >= item.price;
+                
+                let stockText = isSoldOut ? '(已售罄)' : (item.stock === Infinity ? '' : `(剩余: ${item.stock})`);
+                
+                itemDiv.innerHTML = `
+                    <div>
+                        <h3 class="font-bold text-lg">${item.name} ${stockText}</h3>
+                        <p class="text-sm text-stone-600">${item.description}</p>
+                    </div>
+                    <button id="buy-${item.id}" class="btn py-2 px-4 rounded-md ml-4 whitespace-nowrap" ${(!canAfford || isSoldOut) ? 'disabled' : ''}>
+                        购买 (${item.price} LMB)
+                    </button>
+                `;
+                container.appendChild(itemDiv);
+
+                document.getElementById(`buy-${item.id}`).addEventListener('click', () => buyItem(item.id));
+            });
+        }
+
+        function buyItem(itemId) {
+            const item = shopItems.find(i => i.id === itemId);
+            if (!item || item.stock <= 0 || gameState.longmenbi < item.price) {
+                return;
+            }
+
+            gameState.longmenbi -= item.price;
+            if (item.stock !== Infinity) {
+                item.stock--;
+            }
+
+            // Apply item effects - directly, no pending
+            for (const key in item.effect) {
+                if (typeof gameState[key] !== 'undefined') {
+                    gameState[key] += item.effect[key];
+                }
+            }
+            
+            updateUI(); // Update main UI stats
+            populateShop(); // Refresh shop UI
+        }
+
+        // Communicator Functions
+        function renderCommunicator() {
+            const historyContainer = document.getElementById('message-history-container');
+            const currentContainer = document.getElementById('current-message-container');
+            historyContainer.innerHTML = '';
+            currentContainer.innerHTML = '';
+            Object.keys(gameState.messageHistory).sort((a, b) => a - b).forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'text-center text-sm text-gray-400 my-2';
+                dayHeader.textContent = `--- 第 ${day} 天 ---`;
+                historyContainer.appendChild(dayHeader);
+
+                gameState.messageHistory[day].forEach(msg => {
+                    const msgDiv = document.createElement('div');
+                    if (msg.sender === 'player') {
+                        msgDiv.className = 'text-right';
+                        msgDiv.innerHTML = `<span class="inline-block bg-blue-500 rounded-lg px-3 py-2 max-w-xs">${msg.text}</span>`;
+                    } else { // thorns
+                        msgDiv.className = 'text-left';
+                        msgDiv.innerHTML = `<span class="inline-block bg-gray-600 rounded-lg px-3 py-2 max-w-xs">${msg.text}</span>`;
+                    }
+                    historyContainer.appendChild(msgDiv);
+                });
+            });
+
+            if (gameState.currentConversation) {
+                const node = gameState.currentConversation.node;
+                const thornsMsgDiv = document.createElement('div');
+                thornsMsgDiv.className = 'text-left mb-4';
+                thornsMsgDiv.innerHTML = `<span class="inline-block bg-gray-600 rounded-lg px-3 py-2 max-w-xs">${node.message}</span>`;
+                currentContainer.appendChild(thornsMsgDiv);
+                if (node.choices) {
+                    const choicesContainer = document.createElement('div');
+                    choicesContainer.className = 'flex flex-col items-center gap-2';
+                    node.choices.forEach(choice => {
+                        const btn = document.createElement('button');
+                        btn.className = 'text-sm py-2 px-4 rounded-lg w-full bg-cyan-600 hover:bg-cyan-500';
+                        btn.innerHTML = choice.text;
+                        btn.onclick = () => handleMessageReply(choice);
+                        choicesContainer.appendChild(btn);
+                    });
+                    currentContainer.appendChild(choicesContainer);
+                }
+            } else {
+                currentContainer.innerHTML = gameState.messageHistory[gameState.day]
+                    ? `<p class="text-center text-gray-400">棘刺没再回复你，今天就先聊到这里吧。</p>`
+                    : `<p class="text-center text-gray-400">没有新消息。</p>`;
+            }
+            historyContainer.scrollTop = historyContainer.scrollHeight;
+        }
+
+        function handleMessageReply(choice) {
+            const day = gameState.currentConversation.day;
+            if (!gameState.messageHistory[day]) {
+                gameState.messageHistory[day] = [];
+                gameState.messageHistory[day].push({ sender: 'thorns', text: gameState.currentConversation.node.message });
+            }
+
+            gameState.messageHistory[day].push({ sender: 'player', text: choice.playerReply });
+            if (choice.nextStage) {
+                gameState.messageHistory[day].push({ sender: 'thorns', text: choice.nextStage.message });
+                gameState.currentConversation.node = choice.nextStage;
+            } else {
+                if(choice.thornsReply) {
+                    gameState.messageHistory[day].push({ sender: 'thorns', text: choice.thornsReply });
+                }
+                gameState.currentConversation = null;
+            }
+
+            if (choice.effects) {
+                applyEffects(choice.effects);
+                if (gameState.pendingInspiration !== 0) {
+                    const targetInspiration = gameState.inspiration + gameState.pendingInspiration;
+                    gameState.pendingInspiration = 0;
+                    animateInspiration(targetInspiration);
+                }
+            }
+            
+            updateUI();
+            renderCommunicator();
+        }
+
+
+        function getProgressText(progress) { if (progress >= 100) return '已完稿'; if (progress > 90) return '最终卷'; if (progress > 80) return '第九卷'; if (progress > 70) return '第八卷'; if (progress > 60) return '第七卷'; if (progress > 50) return '第六卷'; if (progress > 40) return '第五卷'; if (progress > 30) return '第四卷'; if (progress > 20) return '第三卷'; if (progress > 10) return '第二卷'; if (progress >= 0) return '第一卷'; return '尚未动笔'; }
+        function getSkillText(skill) { if (skill >= 15) return '文思泉涌'; if (skill >= 12) return '行云流水'; if (skill >= 9) return '得心应手'; if (skill >= 6) return '渐入佳境'; if (skill >= 3) return '驾轻就熟'; if (skill >= 0) return '初窥门径'; return '尚未入门'; }
+        function getDominantTag(state) { 
+            let dominant = { name: '均衡', value: 0, key: 'adventure' };
+            const tagMap = { adventure: '冒险', romance: '言情', mystery: '推理', anime: '二次元', erotica: '色情小说' }; 
+            let maxValue = 0;
+            for (const tag in state.tags) { 
+                if (state.tags[tag] > maxValue) { 
+                    maxValue = state.tags[tag];
+                    dominant = { name: tagMap[tag], value: state.tags[tag], key: tag };
+                } 
+            } 
+            return dominant;
+        }
+
+        function restartGame() {
+            // Hide ending modal
+            endingModalOverlay.classList.add('hidden');
+            const endingModal = document.getElementById('ending-modal');
+            const restartBtn = endingModal.querySelector('button');
+            if(restartBtn) restartBtn.remove();
+            // Reset game state
+            Object.assign(gameState, {
+                day: 1,
+                currentTime: 8,
+                clockRotation: 0,
+                longmenbi: 1000,
+                writingProgress: 0,
+                inspiration: 5,
+                writingSkill: 0,
+                thornsFavorability: 0,
+                tags: { adventure: 0, romance: 0, mystery: 0, anime: 0, erotica: 0 },
+                completedEvents: [],
+                isGameOver: false,
+                pendingInspiration: 0,
+                lastProgressText: '',
+                lastSkillText: '',
+                messageHistory: {},
+                currentConversation: null,
+            });
+            // Reset shop stock for items that have finite stock
+            shopItems.find(item => item.id === 'writing_guide').stock = 1;
+            shopItems.find(item => item.id === 'thorns_photo').stock = 1;
+
+            // Reset ending variables
+            endingSequence = [];
+            currentEndingLine = 0;
+
+            // Clear log and main display
+            document.getElementById('log-container').innerHTML = '<p class="log-entry">日志开始...</p>';
+            updateMainDisplay('');
+
+            // Re-initialize the game
+            gameState.clockRotation = ((gameState.currentTime % 12) / 12) * 360;
+            gameState.lastProgressText = getProgressText(gameState.writingProgress);
+            gameState.lastSkillText = getSkillText(gameState.writingSkill);
+            updateUI();
+            updateActionsForTime();
+            openInfoModal();
+        }
+
+        function showNextEndingLine() {
+            const endingTextContainer = document.getElementById('ending-text-container');
+            const endingPrompt = document.getElementById('ending-prompt');
+
+            if (currentEndingLine < endingSequence.length) {
+                const p = document.createElement('p');
+                p.innerHTML = endingSequence[currentEndingLine];
+                p.className = 'opacity-0 animate-fade-in';
+                endingTextContainer.appendChild(p);
+                currentEndingLine++;
+            }
+            
+            if (currentEndingLine >= endingSequence.length) {
+                endingPrompt.style.display = 'none';
+                endingModalOverlay.onclick = null; 
+
+                const restartBtn = document.createElement('button');
+                restartBtn.textContent = '再写一本！';
+                restartBtn.className = 'btn mt-6 py-2 px-6 text-lg rounded-lg animate-fade-in opacity-0';
+                restartBtn.onclick = restartGame;
+                
+                const endingModal = document.getElementById('ending-modal');
+                endingModal.appendChild(restartBtn);
+            }
+        }
+
+        function endGame() {
+            gameState.isGameOver = true;
+            document.getElementById('action-buttons').innerHTML = '';
+            updateMainDisplay('');
+
+            endingSequence = [];
+            const progress = gameState.writingProgress;
+            const skill = gameState.writingSkill;
+            const favor = gameState.thornsFavorability;
+            const tag = getDominantTag(gameState);
+
+            endings.writingProgress.forEach(e => { if (e.condition(progress) && e.text) endingSequence.push(e.text); });
+            endings.writingSkill.forEach(e => { if (e.condition(skill) && e.text) endingSequence.push(e.text); });
+            endings.thornsFavorability.forEach(e => { if (e.condition(favor) && e.text) endingSequence.push(e.text); });
+            endings.dominantTag.forEach(e => { if (e.condition(tag) && e.text) endingSequence.push(e.text); });
+            
+            const finalEnding = endings.finalEnding.find(e => e.condition(gameState));
+            if (finalEnding) {
+                endingSequence.push(finalEnding.text);
+            }
+
+            currentEndingLine = 0;
+            const endingTextContainer = document.getElementById('ending-text-container');
+            const endingPrompt = document.getElementById('ending-prompt');
+            
+            endingTextContainer.innerHTML = '';
+            endingPrompt.textContent = '点击任意位置继续...';
+            endingPrompt.style.display = 'block';
+            endingModalOverlay.classList.remove('hidden');
+
+            endingModalOverlay.onclick = showNextEndingLine;
+            showNextEndingLine(); // Show the first line immediately
+        }
+
+        // Event Listeners for Modals
+        openInfoBtn.addEventListener('click', openInfoModal);
+        closeInfoModalBtn.addEventListener('click', closeInfoModal);
+        infoModalOverlay.addEventListener('click', (event) => { if (event.target === infoModalOverlay) { closeInfoModal(); } });
+        closeShopModalBtn.addEventListener('click', closeShopModal);
+        shopModalOverlay.addEventListener('click', (event) => { if (event.target === shopModalOverlay) { closeShopModal(); } });
+        closeCommunicatorModalBtn.addEventListener('click', closeCommunicatorModal);
+        communicatorModalOverlay.addEventListener('click', (event) => { if (event.target === communicatorModalOverlay) { closeCommunicatorModal(); } });
+
+        window.onload = () => {
+            gameState.clockRotation = ((gameState.currentTime % 12) / 12) * 360;
+            gameState.lastProgressText = getProgressText(gameState.writingProgress);
+            gameState.lastSkillText = getSkillText(gameState.writingSkill);
+            updateUI();
+            updateActionsForTime();
+            openInfoModal();
+        };
+    </script>
+</body>
+</html>
